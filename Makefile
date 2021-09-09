@@ -1,9 +1,18 @@
 ######## SGX SDK Settings ########
 
-SGX_SDK ?= /opt/intel/sgxsdk # Intel SGX directory
-SGX_MODE ?= SW # HW or SW (Hardware or Simulation mode)
-SGX_ARCH ?= x64 # x64 or x86
-SGX_DEBUG ?= 1 # DEBUG MODE
+# Intel SGX directory
+SGX_SDK ?= /opt/intel/sgxsdk
+# HW or SW (Hardware or Simulation mode)
+SGX_MODE ?= HW
+# x64 or x86
+SGX_ARCH ?= x64
+# DEBUG MODE
+SGX_DEBUG ?= 1
+
+CXX = clang++
+CC = clang
+# Customized. Set by user.
+SGXSanPath := $(abspath ../../linux-sgx/SGXSan)
 
 # Find out whether 32 or 64 bit
 ifeq ($(shell getconf LONG_BIT), 32)
@@ -62,7 +71,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -L$(SGXSanPath)/output -l$(Urts_Library_Name) -lpthread -lSGXSanRTApp -Wl,-rpath=$(SGXSanPath)/output
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -88,9 +97,9 @@ Crypto_Library_Name := sgx_tcrypto
 Enclave_Cpp_Files := Enclave/Enclave.cpp Enclave/sqlite3.c
 Enclave_Include_Paths := -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
 
-Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong
+Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong -Wno-parentheses-equality -Wno-unused-value -Wno-implicit-const-int-float-conversion -Wno-unused-command-line-argument -Xclang -load -Xclang $(SGXSanPath)/output/libSymbolSaverForLTOPass.so -flto
 Enclave_C_Flags += $(Enclave_Include_Paths)
-Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
+Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++ -Wno-implicit-exception-spec-mismatch
 
 # To generate a proper enclave, it is recommended to follow below guideline to link the trusted libraries:
 #    1. Link sgx_trts with the `--whole-archive' and `--no-whole-archive' options,
@@ -99,13 +108,16 @@ Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 #       Use `--start-group' and `--end-group' to link these libraries.
 # Do NOT move the libraries linked with `--start-group' and `--end-group' within `--whole-archive' and `--no-whole-archive' options.
 # Otherwise, you may get some undesirable errors.
-Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
-	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGXSanPath)/output -L$(SGX_LIBRARY_PATH) \
+	-Wl,--whole-archive -lSGXSanRTEnclave -l$(Trts_Library_Name) -Wl,--no-whole-archive \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_pthread -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \
-	-Wl,--version-script=Enclave/Enclave.lds
+	-Wl,--version-script=Enclave/Enclave.lds \
+	-fuse-ld=lld \
+	-Wl,-mllvm=-load=$(SGXSanPath)/output/libSensitiveLeakSanPass.so \
+	-Wl,-mllvm=-load=$(SGXSanPath)/output/libSGXSanPass.so
 
 Enclave_Cpp_Objects := Enclave/Enclave.o Enclave/sqlite3.o Enclave/ocall_interface.o
 
@@ -170,7 +182,7 @@ endif
 
 # Genereate untrusted brigde routines (Enclave_u.c and Enclave_u.h) using .edl file
 App/Enclave_u.c: $(SGX_EDGER8R) Enclave/Enclave.edl
-	cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(SGXSanPath)/output
 	@echo "GEN  =>  $@"
 
 # Compile untrusted brigde routines
@@ -201,7 +213,7 @@ $(App_Name): App/Enclave_u.o App/ocalls.o $(App_Cpp_Objects)
 
 # Genereate trusted brigde routines (Enclave_t.c and Enclave_t.h) using .edl file
 Enclave/Enclave_t.c: $(SGX_EDGER8R) Enclave/Enclave.edl
-	cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --search-path $(SGXSanPath)/output
 	@echo "GEN  =>  $@"
 
 # Compile trusted brigde routines
@@ -210,29 +222,29 @@ Enclave/Enclave_t.o: Enclave/Enclave_t.c
 	@echo "CC   <=  $<"
 
 # Compile trusted Enclave
-Enclave/Enclave.o: Enclave/Enclave.cpp
+Enclave/Enclave.o: Enclave/Enclave.cpp Enclave/Enclave_t.c
 	$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 # Preprocess sqlite3
 Enclave/sqlite3.i: Enclave/sqlite3.c
 	$(CC) -I$(SGX_SDK)/include -DSQLITE_THREADSAFE=0 -E $< -o $@
-	@echo "CC-Preprocess  <=  $<"
+	@echo "CPP  <=  $<"
 
 # Compile sqlite3
 Enclave/sqlite3.o: Enclave/sqlite3.i Enclave/sqlite3.c
 	$(CC) $(Enclave_C_Flags) -DSQLITE_THREADSAFE=0 -c $< -o $@
-	@echo "CC  <=  $<"
+	@echo "CC   <=  $<"
 
 # Preprocess sqlite3
 Enclave/ocall_interface.i: Enclave/ocall_interface.c
 	$(CC) -I$(SGX_SDK)/include -E $< -o $@
-	@echo "CC-Preprocess  <=  $<"
+	@echo "CPP  <=  $<"
 
 # Compile ocall_interface
 Enclave/ocall_interface.o: Enclave/ocall_interface.i Enclave/Enclave_t.c
 	$(CC) $(Enclave_C_Flags) -c $< -o $@
-	@echo "CC  <=  $<"
+	@echo "CC   <=  $<"
 
 # Link and generate Enclave shared library/executable
 $(Enclave_Name): Enclave/Enclave_t.o $(Enclave_Cpp_Objects)
@@ -247,3 +259,5 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 
 clean:
 	rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.* Enclave/sqlite3.i Enclave/ocall_interface.i
+	@rm -f test.db
+	@rm -rf sgxsan_data_*

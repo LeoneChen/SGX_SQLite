@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 
 int ocall_lstat(const char *path, struct stat* buf){
     //printf("Entering %s\n", __func__);
@@ -16,9 +17,11 @@ int ocall_stat(const char *path, struct stat* buf){
     return stat(path, buf);
 }
 
-int ocall_fstat(int fd, struct stat* buf){
+int ocall_fstat(int fd, struct stat* buf, size_t size, int *err){
     //printf("Entering %s\n", __func__);
-    return fstat(fd, buf);
+    int ret = fstat(fd, buf);
+    *err = errno;
+    return ret;
 }
 
 int ocall_ftruncate(int fd, off_t length){
@@ -51,9 +54,11 @@ int ocall_read(int fd, void *buf, size_t count){
     return read(fd, buf, count);
 }
 
-int ocall_write(int fd, const void *buf, size_t count){
+int ocall_write(int fd, const void *buf, size_t count, int *err){
     //printf("Entering %s\n", __func__);
-    return write(fd, buf, count);
+    int ret = write(fd, buf, count);
+    *err = errno;
+    return ret;
 }
 
 int ocall_fcntl(int fd, int cmd, void* arg, size_t size){
@@ -66,9 +71,11 @@ int ocall_close(int fd){
     return close(fd);
 }
 
-int ocall_unlink(const char *pathname){
+int ocall_unlink(const char *pathname, int *err){
     //printf("Entering %s\n", __func__);
-    return unlink(pathname);
+    int ret = unlink(pathname);
+    *err = errno;
+    return ret;
 }
 
 int ocall_getuid(void){

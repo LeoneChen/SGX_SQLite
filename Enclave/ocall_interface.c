@@ -6,6 +6,7 @@
 #include <stdarg.h> // for variable arguments functions
 #include <fcntl.h>
 #include <stdlib.h>
+#include <errno.h>
 
 // At this point we have already definitions needed for  ocall interface, so:
 #define DO_NOT_REDEFINE_FOR_OCALL
@@ -53,7 +54,7 @@ off_t lseek64(int fd, off_t offset, int whence){
     return ret;
 }
 
-int gettimeofday(struct timeval *tv, struct timezone *tz){
+int gettimeofday(struct timeval *tv, void *tz){
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
@@ -71,6 +72,7 @@ void *dlopen(const char *filename, int flag){
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 char *dlerror(void){
@@ -84,7 +86,7 @@ void *dlsym(void *handle, const char *symbol){
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
-
+    return NULL;
 }
 
 int dlclose(void *handle){
@@ -189,8 +191,10 @@ int sgx_stat(const char *path, struct stat *buf){
 }
 
 int sgx_fstat(int fd, struct stat *buf){
-    int ret;
-    sgx_status_t status = ocall_fstat(&ret, fd, buf, sizeof(struct stat));
+    int ret, err;
+    sgx_status_t status = ocall_fstat(&ret, fd, buf, sizeof(struct stat), &err);
+    if (ret == -1)
+        errno = err;
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
@@ -227,6 +231,15 @@ int fcntl(int fd, int cmd, ... /* arg */ ){
     return ret;
 }
 
+int fcntl64(int fd, int cmd, ... /* arg */ ){
+    va_list valist;
+    va_start(valist, cmd);
+    void* arg = va_arg(valist, void*);
+    va_end(valist);
+
+    return fcntl(fd, cmd, arg);
+}
+
 ssize_t read(int fd, void *buf, size_t count){
     int ret;
     sgx_status_t status = ocall_read(&ret, fd, buf, count);
@@ -239,8 +252,10 @@ ssize_t read(int fd, void *buf, size_t count){
 }
 
 ssize_t write(int fd, const void *buf, size_t count){
-    int ret;
-    sgx_status_t status = ocall_write(&ret, fd, buf, count);
+    int ret, err;
+    sgx_status_t status = ocall_write(&ret, fd, buf, count, &err);
+    if (ret == -1)
+        errno = err;
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
@@ -257,8 +272,10 @@ int fchmod(int fd, mode_t mode){
 }
 
 int unlink(const char *pathname){
-    int ret;
-    sgx_status_t status = ocall_unlink(&ret, pathname);
+    int ret, err;
+    sgx_status_t status = ocall_unlink(&ret, pathname, &err);
+    if (ret == -1)
+        errno = err;
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
@@ -314,6 +331,7 @@ void *mmap64(void *addr, size_t len, int prot, int flags, int fildes, off_t off)
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 int munmap(void *addr, size_t length){
@@ -327,6 +345,7 @@ void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 ssize_t readlink(const char *path, char *buf, size_t bufsiz){

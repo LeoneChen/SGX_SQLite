@@ -18,3 +18,7 @@ Enclave/Enclave_t.*
 
 test.db
 test.db-journal
+
+*.ll
+sgxsan_data_*
+.vscode/settings.json

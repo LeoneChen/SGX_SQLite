@@ -23,11 +23,13 @@ void ocall_println_string(const char *str){
 
 // Application entry
 int main(int argc, char *argv[]){
-    if ( argc != 2 ){
-        cout << "Usage: " << argv[0] << " <database>" << endl;
-        return -1;
-    }
-    const char* dbname = argv[1];
+    // if ( argc != 2 ){
+    //     cout << "Usage: " << argv[0] << " <database>" << endl;
+    //     return -1;
+    // }
+    // const char* dbname = argv[1];
+
+    const char *dbname = (argc != 2) ? "test.db" : argv[1];
 
     sgx_enclave_id_t eid = 0;
     char token_path[MAX_PATH] = {'\0'};
