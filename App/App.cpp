@@ -53,6 +53,13 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
+    // Closing SQLite database inside enclave
+    ret =  ecall_closedb(eid);
+    if (ret != SGX_SUCCESS) {
+        cerr << "Error: Making an ecall_closedb()" << endl;
+        return -1;
+    }
+
     cout << "Enter SQL statement to execute or 'quit' to exit: " << endl;
     string input;
     cout << "> ";
@@ -67,13 +74,6 @@ int main(int argc, char *argv[]){
             return -1;
         }
         cout << "> ";
-    }
-
-    // Closing SQLite database inside enclave
-    ret =  ecall_closedb(eid);
-    if (ret != SGX_SUCCESS) {
-        cerr << "Error: Making an ecall_closedb()" << endl;
-        return -1;
     }
 
     // Destroy the enclave

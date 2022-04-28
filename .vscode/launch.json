@@ -35,7 +35,7 @@
             ]
         },
         {
-            "name": "(gdb) Launch",
+            "name": "(app) Launch",
             "type": "cppdbg",
             "request": "launch",
             "program": "/home/leone/文档/SGX_APP/SGX_SQLite/app",
