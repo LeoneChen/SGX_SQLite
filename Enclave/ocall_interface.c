@@ -53,7 +53,7 @@ off_t lseek64(int fd, off_t offset, int whence){
     return ret;
 }
 
-int gettimeofday(struct timeval *tv, struct timezone *tz){
+int gettimeofday(struct timeval *tv, void *tz){
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
@@ -71,6 +71,7 @@ void *dlopen(const char *filename, int flag){
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 char *dlerror(void){
@@ -84,7 +85,7 @@ void *dlsym(void *handle, const char *symbol){
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
-
+    return NULL;
 }
 
 int dlclose(void *handle){
@@ -214,11 +215,95 @@ int fcntl(int fd, int cmd, ... /* arg */ ){
     // Read one argument
     va_list valist;
 	va_start(valist, cmd);
-	void* arg = va_arg(valist, void*);
+    int ret;
+    sgx_status_t status = SGX_ERROR_UNEXPECTED;
+    switch (cmd)
+    {
+    // arg (uint64_t *)
+#ifdef F_GET_RW_HINT
+    case F_GET_RW_HINT:
+#endif
+#ifdef F_SET_RW_HINT
+    case F_SET_RW_HINT:
+#endif
+#ifdef F_GET_FILE_RW_HINT
+    case F_GET_FILE_RW_HINT:
+#endif
+#ifdef F_SET_FILE_RW_HINT
+    case F_SET_FILE_RW_HINT:
+#endif
+#if defined(F_GET_RW_HINT) || defined(F_SET_RW_HINT) || defined(F_GET_FILE_RW_HINT) || defined(F_SET_FILE_RW_HINT)
+    {
+        uint64_t *arg = va_arg(valist, uint64_t *);
+        status = ocall_fcntl_arg_ptr(&ret, fd, cmd, arg, sizeof(uint64_t));
+        break;
+    }
+#endif
+    // arg (void)
+    case F_GETFD:
+    case F_GETFL:
+#ifdef F_GETOWN
+    case F_GETOWN:
+#endif
+#ifdef F_GETSIG
+    case F_GETSIG:
+#endif
+#ifdef F_GETLEASE
+    case F_GETLEASE:
+#endif
+#ifdef F_GETPIPE_SZ
+    case F_GETPIPE_SZ:
+#endif
+#ifdef F_GET_SEALS
+    case F_GET_SEALS:
+#endif
+    {
+        status = ocall_fcntl_arg_void(&ret, fd, cmd);
+        break;
+    }
+
+    // arg (struct flock *)
+    case F_SETLK:
+    case F_SETLKW:
+    case F_GETLK:
+#ifdef F_OFD_SETLK
+    case F_OFD_SETLK:
+#endif
+#ifdef F_OFD_SETLKW
+    case F_OFD_SETLKW:
+#endif
+#ifdef F_OFD_GETLK
+    case F_OFD_GETLK:
+#endif
+    {
+        struct flock *arg = va_arg(valist, struct flock *);
+        status = ocall_fcntl_arg_ptr(&ret, fd, cmd, arg, sizeof(struct flock));
+        break;
+    }
+
+    // arg (struct f_owner_ex *)
+#ifdef F_GETOWN_EX
+    case F_GETOWN_EX:
+#endif
+#ifdef F_SETOWN_EX
+    case F_SETOWN_EX:
+#endif
+#if defined(F_GETOWN_EX) || defined(F_SETOWN_EX)
+    {
+        struct f_owner_ex *arg = va_arg(valist, struct f_owner_ex *);
+        status = ocall_fcntl_arg_ptr(&ret, fd, cmd, arg, sizeof(struct f_owner_ex));
+        break;
+    }
+#endif
+    // arg (int)
+    default:
+    {
+        int arg = va_arg(valist, int);
+        status = ocall_fcntl_arg_int(&ret, fd, cmd, arg);
+    }
+    }
 	va_end(valist);
 
-    int ret;
-    sgx_status_t status = ocall_fcntl(&ret, fd, cmd, arg, sizeof(void*));
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
@@ -226,6 +311,7 @@ int fcntl(int fd, int cmd, ... /* arg */ ){
     }
     return ret;
 }
+int fcntl64(int fd, int cmd, ...) __attribute__((alias("fcntl")));
 
 ssize_t read(int fd, void *buf, size_t count){
     int ret;
@@ -314,6 +400,7 @@ void *mmap64(void *addr, size_t len, int prot, int flags, int fildes, off_t off)
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 int munmap(void *addr, size_t length){
@@ -327,6 +414,7 @@ void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 ssize_t readlink(const char *path, char *buf, size_t bufsiz){

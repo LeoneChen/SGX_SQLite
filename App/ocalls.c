@@ -56,7 +56,17 @@ int ocall_write(int fd, const void *buf, size_t count){
     return write(fd, buf, count);
 }
 
-int ocall_fcntl(int fd, int cmd, void* arg, size_t size){
+int ocall_fcntl_arg_void(int fd, int cmd)
+{
+    return fcntl(fd, cmd);
+}
+
+int ocall_fcntl_arg_int(int fd, int cmd, int arg)
+{
+    return fcntl(fd, cmd, arg);
+}
+
+int ocall_fcntl_arg_ptr(int fd, int cmd, void* arg, size_t size){
     //printf("Entering %s\n", __func__);
     return fcntl(fd, cmd, arg);
 }
