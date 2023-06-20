@@ -18,3 +18,9 @@ Enclave/Enclave_t.*
 
 test.db
 test.db-journal
+Enclave.edl.json
+workdir*
+*.cpio.gz
+SGX_SQLite
+InstrumentStatistics.json
+*.o

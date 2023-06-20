@@ -1,4 +1,5 @@
 enclave {
+    from "SGXSanRTEnclave.edl" import *;
     from "sgx_tstdc.edl" import *;
     include "../ocall_types.h" // Need to import some type declartions from stdlib
 
