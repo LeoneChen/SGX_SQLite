@@ -218,7 +218,7 @@ App/Enclave_u.c: $(SGX_EDGER8R) Enclave/Enclave.edl
 	@echo "GEN  =>  $@"
 
 # Compile untrusted brigde routines
-App/Enclave_u.o: App/Enclave_u.c
+App/Enclave_u.o: App/Enclave_u.c $(Enclave_Name)
 	$(CC) $(App_C_Flags) -DSGX_UNTRUSTED -c $< -o $@ \
 	-flegacy-pass-manager \
 	-Xclang -load -Xclang $(SGX_SDK)/lib64/libSGXFuzzerPass.so
@@ -293,3 +293,4 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 
 clean:
 	rm -f .config_* $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) App/Enclave_u.* $(Enclave_Cpp_Objects) Enclave/Enclave_t.* Enclave/sqlite3.i Enclave/ocall_interface.i
+	rm -f InstrumentStatistics.json
