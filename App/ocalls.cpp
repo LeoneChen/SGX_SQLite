@@ -5,15 +5,25 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <filesystem>
+#include <string.h>
+#include <string>
 
+namespace fs = std::filesystem;
+
+#define WORK_DIR "/tmp/OCallWorkDir/"
+
+#define NEW_PATH(path) ((std::string(WORK_DIR) + path).c_str())
+
+extern "C" {
 int ocall_lstat(const char *path, struct stat* buf){
     //printf("Entering %s\n", __func__);
-    return lstat(path, buf);
+    return lstat(NEW_PATH(path), buf);
 }
 
 int ocall_stat(const char *path, struct stat* buf){
     //printf("Entering %s\n", __func__);
-    return stat(path, buf);
+    return stat(NEW_PATH(path), buf);
 }
 
 int ocall_fstat(int fd, struct stat* buf){
@@ -27,8 +37,13 @@ int ocall_ftruncate(int fd, off_t length){
 }
 
 char* ocall_getcwd(char *buf, size_t size){
+    auto oldPath = fs::current_path();
+    auto newPath = fs::path(WORK_DIR) / oldPath;
+    fs::current_path(newPath);
     //printf("Entering %s\n", __func__);
-    return getcwd(buf, size);
+    auto ret = getcwd(buf, size);
+    fs::current_path(oldPath);
+    return ret;
 }
 
 int ocall_getpid(void){
@@ -38,7 +53,7 @@ int ocall_getpid(void){
 
 int ocall_open64(const char *filename, int flags, mode_t mode){
     //printf("Entering %s\n", __func__);
-    return open(filename, flags, mode); // redirect it to open() instead of open64()
+    return open(NEW_PATH(filename), flags, mode); // redirect it to open() instead of open64()
 }
 
 off_t ocall_lseek64(int fd, off_t offset, int whence){
@@ -68,7 +83,7 @@ int ocall_close(int fd){
 
 int ocall_unlink(const char *pathname){
     //printf("Entering %s\n", __func__);
-    return unlink(pathname);
+    return unlink(NEW_PATH(pathname));
 }
 
 int ocall_getuid(void){
@@ -84,4 +99,5 @@ char* ocall_getenv(const char *name){
 int ocall_fsync(int fd){
     //printf("Entering %s\n", __func__);
     return fsync(fd);
+}
 }

@@ -45,6 +45,7 @@ else
 endif
 
 App_Cpp_Files := App/App.cpp
+App_Cpp_Files += App/SGXFuzzerCB.cpp
 App_Include_Paths := -IApp -I$(SGX_SDK)/include
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
@@ -61,7 +62,7 @@ else
         App_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
 endif
 
-App_Cpp_Flags := $(App_C_Flags) -std=c++11
+App_Cpp_Flags := $(App_C_Flags) -std=c++17
 App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
 
 ifneq ($(SGX_MODE), HW)
@@ -72,7 +73,7 @@ endif
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o) App/ocalls.o
 
-App_Name := app
+App_Name := SGX_SQLite
 
 ######## Enclave Settings ########
 
@@ -88,9 +89,9 @@ Crypto_Library_Name := sgx_tcrypto
 Enclave_Cpp_Files := Enclave/Enclave.cpp Enclave/sqlite3.c
 Enclave_Include_Paths := -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
 
-Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong
+Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong
 Enclave_C_Flags += $(Enclave_Include_Paths)
-Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
+Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11
 
 # To generate a proper enclave, it is recommended to follow below guideline to link the trusted libraries:
 #    1. Link sgx_trts with the `--whole-archive' and `--no-whole-archive' options,
@@ -99,13 +100,12 @@ Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 #       Use `--start-group' and `--end-group' to link these libraries.
 # Do NOT move the libraries linked with `--start-group' and `--end-group' within `--whole-archive' and `--no-whole-archive' options.
 # Otherwise, you may get some undesirable errors.
-Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
-	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
-	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
-	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
-	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \
-	-Wl,--version-script=Enclave/Enclave.lds
+Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) \
+	-Wl,--whole-archive -lSGXSanRTEnclave -l$(Trts_Library_Name) -Wl,--no-whole-archive \
+	-Wl,--start-group -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+	-Wl,-Bsymbolic \
+	-Wl,-eenclave_entry -Wl,--export-dynamic  \
+	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections
 
 Enclave_Cpp_Objects := Enclave/Enclave.o Enclave/sqlite3.o Enclave/ocall_interface.o
 
@@ -131,6 +131,61 @@ else
 endif
 endif
 
+ifeq ($(KAFL_FUZZER), 1)
+App_Link_Flags += \
+	-ldl \
+	-Wl,-rpath=$(SGX_LIBRARY_PATH) \
+	-Wl,-whole-archive -lSGXSanRTApp -Wl,-no-whole-archive \
+	-lSGXFuzzerRT \
+	-lcrypto \
+	-lboost_program_options \
+	-rdynamic \
+	-lnyx_agent
+Enclave_C_Flags += \
+	-fno-discard-value-names \
+	-flegacy-pass-manager \
+	-Xclang -load -Xclang $(SGX_SDK)/lib64/libSGXSanPass.so
+Enclave_Cpp_Flags += \
+	-fno-discard-value-names \
+	-flegacy-pass-manager \
+	-Xclang -load -Xclang $(SGX_SDK)/lib64/libSGXSanPass.so
+Enclave_Link_Flags += -shared
+else
+App_C_Flags += \
+	-fsanitize-coverage=inline-8bit-counters,bb,no-prune,pc-table,trace-cmp \
+	-fprofile-instr-generate \
+	-fcoverage-mapping
+App_Cpp_Flags += \
+	-fsanitize-coverage=inline-8bit-counters,bb,no-prune,pc-table,trace-cmp \
+	-fprofile-instr-generate \
+	-fcoverage-mapping
+App_Link_Flags += \
+	-ldl \
+	-Wl,-rpath=$(SGX_LIBRARY_PATH) \
+	-Wl,-whole-archive -lSGXSanRTApp -Wl,-no-whole-archive \
+	-lSGXFuzzerRT \
+	-lcrypto \
+	-lboost_program_options \
+	-rdynamic \
+	-fuse-ld=${LD} \
+	-fprofile-instr-generate
+Enclave_C_Flags += \
+	-fno-discard-value-names \
+	-flegacy-pass-manager \
+	-Xclang -load -Xclang $(SGX_SDK)/lib64/libSGXSanPass.so \
+	-fsanitize-coverage=inline-8bit-counters,bb,no-prune,pc-table,trace-cmp \
+	-fprofile-instr-generate \
+	-fcoverage-mapping
+Enclave_Cpp_Flags += \
+	-fno-discard-value-names \
+	-flegacy-pass-manager \
+	-Xclang -load -Xclang $(SGX_SDK)/lib64/libSGXSanPass.so \
+	-fsanitize-coverage=inline-8bit-counters,bb,no-prune,pc-table,trace-cmp \
+	-fprofile-instr-generate \
+	-fcoverage-mapping
+Enclave_Link_Flags += -fuse-ld=${LD} -fprofile-instr-generate -shared
+endif
+
 ##### TARGETS #####
 
 .PHONY: all run
@@ -145,7 +200,7 @@ all: .config_$(Build_Mode)_$(SGX_ARCH) $(App_Name) $(Enclave_Name)
 	@echo "You can also sign the enclave using an external signing tool."
 	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
 else
-all: .config_$(Build_Mode)_$(SGX_ARCH) $(App_Name) $(Signed_Enclave_Name)
+all: .config_$(Build_Mode)_$(SGX_ARCH) $(App_Name) $(Enclave_Name)
 ifeq ($(Build_Mode), HW_DEBUG)
 	@echo "The project has been built in debug hardware mode."
 else ifeq ($(Build_Mode), SIM_DEBUG)
@@ -170,21 +225,23 @@ endif
 
 # Genereate untrusted brigde routines (Enclave_u.c and Enclave_u.h) using .edl file
 App/Enclave_u.c: $(SGX_EDGER8R) Enclave/Enclave.edl
-	cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
+	cd App && $(SGX_EDGER8R) --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include --dump-parse ../Enclave.edl.json
 	@echo "GEN  =>  $@"
 
 # Compile untrusted brigde routines
 App/Enclave_u.o: App/Enclave_u.c
-	$(CC) $(App_C_Flags) -DSGX_UNTRUSTED -c $< -o $@
+	$(CC) $(App_C_Flags) -DSGX_UNTRUSTED -c $< -o $@ \
+	-flegacy-pass-manager \
+	-Xclang -load -Xclang $(SGX_SDK)/lib64/libSGXFuzzerPass.so
 	@echo "CC   <=  $<"
 
 # Compile ocalls
-App/ocalls.o: App/ocalls.c
-	$(CC) $(App_C_Flags) -c $< -o $@
+App/ocalls.o: App/ocalls.cpp
+	$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
 # Compile untrusted Application
-App/%.o: App/%.cpp
+App/%.o: App/%.cpp App/Enclave_u.c
 	$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
@@ -210,7 +267,7 @@ Enclave/Enclave_t.o: Enclave/Enclave_t.c
 	@echo "CC   <=  $<"
 
 # Compile trusted Enclave
-Enclave/Enclave.o: Enclave/Enclave.cpp
+Enclave/Enclave.o: Enclave/Enclave.cpp Enclave/Enclave_t.c
 	$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
@@ -225,7 +282,7 @@ Enclave/sqlite3.o: Enclave/sqlite3.i Enclave/sqlite3.c
 	@echo "CC  <=  $<"
 
 # Preprocess sqlite3
-Enclave/ocall_interface.i: Enclave/ocall_interface.c
+Enclave/ocall_interface.i: Enclave/ocall_interface.c Enclave/Enclave_t.c
 	$(CC) -I$(SGX_SDK)/include -E $< -o $@
 	@echo "CC-Preprocess  <=  $<"
 
