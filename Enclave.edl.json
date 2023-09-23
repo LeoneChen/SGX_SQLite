@@ -1,0 +1,549 @@
+{
+  "FileName": "../Enclave.edl.json",
+  "trusted": {
+    "ecall_opendb": {
+      "return": { "type": "void" },
+      "switchless": false,
+      "public": true,
+      "parameter": {
+        "0": {
+          "name": "dbname",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        }
+      }
+    },
+    "ecall_execute_sql": {
+      "return": { "type": "void" },
+      "switchless": false,
+      "public": true,
+      "parameter": {
+        "0": {
+          "name": "sql",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        }
+      }
+    },
+    "ecall_closedb": {
+      "return": { "type": "void" },
+      "switchless": false,
+      "public": true,
+      "parameter": {}
+    }
+  },
+  "untrusted": {
+    "ocall_println_string": {
+      "return": { "type": "void" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "str",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        }
+      }
+    },
+    "ocall_print_string": {
+      "return": { "type": "void" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "str",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        }
+      }
+    },
+    "ocall_print_error": {
+      "return": { "type": "void" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "str",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        }
+      }
+    },
+    "ocall_lstat": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": true,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "path",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        },
+        "1": {
+          "name": "buf",
+          "field": { "0": { "field": {} } },
+          "type": "struct stat*",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": false,
+          "in": true,
+          "out": true,
+          "size": { "co_param": "size", "co_param_pos": 2 }
+        },
+        "2": { "name": "size", "type": "size_t" }
+      }
+    },
+    "ocall_stat": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "path",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        },
+        "1": {
+          "name": "buf",
+          "field": { "0": { "field": {} } },
+          "type": "struct stat*",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": false,
+          "in": true,
+          "out": true,
+          "size": { "co_param": "size", "co_param_pos": 2 }
+        },
+        "2": { "name": "size", "type": "size_t" }
+      }
+    },
+    "ocall_fstat": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": { "name": "fd", "type": "int" },
+        "1": {
+          "name": "buf",
+          "field": { "0": { "field": {} } },
+          "type": "struct stat*",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": false,
+          "in": true,
+          "out": true,
+          "size": { "co_param": "size", "co_param_pos": 2 }
+        },
+        "2": { "name": "size", "type": "size_t" }
+      }
+    },
+    "ocall_ftruncate": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": { "name": "fd", "type": "int" },
+        "1": { "name": "length", "type": "off_t" }
+      }
+    },
+    "ocall_getcwd": {
+      "return": { "type": "char*" },
+      "switchless": false,
+      "propagate_errno": true,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "buf",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": false,
+          "out": true,
+          "size": { "co_param": "size", "co_param_pos": 1 }
+        },
+        "1": { "name": "size", "type": "size_t" }
+      }
+    },
+    "ocall_getpid": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {}
+    },
+    "ocall_getuid": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {}
+    },
+    "ocall_getenv": {
+      "return": { "type": "char*" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "name",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        }
+      }
+    },
+    "ocall_open64": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "filename",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        },
+        "1": { "name": "flags", "type": "int" },
+        "2": { "name": "mode", "type": "mode_t" }
+      }
+    },
+    "ocall_close": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": { "0": { "name": "fd", "type": "int" } }
+    },
+    "ocall_lseek64": {
+      "return": { "type": "off_t" },
+      "switchless": false,
+      "propagate_errno": true,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": { "name": "fd", "type": "int" },
+        "1": { "name": "offset", "type": "off_t" },
+        "2": { "name": "whence", "type": "int" }
+      }
+    },
+    "ocall_read": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": true,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": { "name": "fd", "type": "int" },
+        "1": {
+          "name": "buf",
+          "field": { "0": { "field": {} } },
+          "type": "void*",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": false,
+          "out": true,
+          "size": { "co_param": "count", "co_param_pos": 2 }
+        },
+        "2": { "name": "count", "type": "size_t" }
+      }
+    },
+    "ocall_write": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": true,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": { "name": "fd", "type": "int" },
+        "1": {
+          "name": "buf",
+          "field": { "0": { "field": {} } },
+          "type": "void*",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true,
+          "size": { "co_param": "count", "co_param_pos": 2 }
+        },
+        "2": { "name": "count", "type": "size_t" }
+      }
+    },
+    "ocall_fsync": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": { "0": { "name": "fd", "type": "int" } }
+    },
+    "ocall_fcntl": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": true,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": { "name": "fd", "type": "int" },
+        "1": { "name": "cmd", "type": "int" },
+        "2": {
+          "name": "arg",
+          "field": { "0": { "field": {} } },
+          "type": "void*",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": false,
+          "in": true,
+          "size": { "co_param": "size", "co_param_pos": 3 }
+        },
+        "3": { "name": "size", "type": "size_t" }
+      }
+    },
+    "ocall_unlink": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "NOCONVENTION",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "pathname",
+          "field": { "0": { "field": {} } },
+          "type": "char*",
+          "user_check": false,
+          "string": true,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true
+        }
+      }
+    },
+    "sgx_oc_cpuidex": {
+      "return": { "type": "void" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "CDECL",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "cpuinfo",
+          "c_array": true,
+          "dims_str": "[4]",
+          "c_array_total_count": 4,
+          "c_array_count": 4,
+          "field": { "0": { "field": {} } },
+          "type": "int",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": false,
+          "out": true
+        },
+        "1": { "name": "leaf", "type": "int" },
+        "2": { "name": "subleaf", "type": "int" }
+      }
+    },
+    "sgx_thread_wait_untrusted_event_ocall": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "CDECL",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "self",
+          "field": { "0": { "field": {} } },
+          "type": "void*",
+          "user_check": true,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true
+        }
+      }
+    },
+    "sgx_thread_set_untrusted_event_ocall": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "CDECL",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "waiter",
+          "field": { "0": { "field": {} } },
+          "type": "void*",
+          "user_check": true,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true
+        }
+      }
+    },
+    "sgx_thread_setwait_untrusted_events_ocall": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "CDECL",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "waiter",
+          "field": { "0": { "field": {} } },
+          "type": "void*",
+          "user_check": true,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true
+        },
+        "1": {
+          "name": "self",
+          "field": { "0": { "field": {} } },
+          "type": "void*",
+          "user_check": true,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true
+        }
+      }
+    },
+    "sgx_thread_set_multiple_untrusted_events_ocall": {
+      "return": { "type": "int" },
+      "switchless": false,
+      "propagate_errno": false,
+      "call_conv": "CDECL",
+      "dllimport": false,
+      "allow_list": [],
+      "parameter": {
+        "0": {
+          "name": "waiters",
+          "field": { "0": { "field": {} } },
+          "type": "void**",
+          "user_check": false,
+          "string": false,
+          "wstring": false,
+          "isptr": false,
+          "readonly": true,
+          "in": true,
+          "count": { "co_param": "total", "co_param_pos": 1 }
+        },
+        "1": { "name": "total", "type": "size_t" }
+      }
+    }
+  }
+}

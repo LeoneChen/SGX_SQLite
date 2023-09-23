@@ -1,0 +1,4 @@
+CREATE TABLE runoob_tbl(runoob_id INT,submission_date DATE,PRIMARY KEY ( runoob_id ));
+INSERT INTO runoob_tbl VALUES (1, 1.1);
+SELECT * FROM runoob_tbl;
+DROP TABLE runoob_tbl;

@@ -3,7 +3,7 @@
 app
 
 enclave.so
-enclave.signed.so
+enclave.signed.so*
 
 App/App.o
 App/ocalls.o
@@ -18,3 +18,4 @@ Enclave/Enclave_t.*
 
 test.db
 test.db-journal
+ghidra

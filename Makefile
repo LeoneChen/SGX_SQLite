@@ -1,9 +1,13 @@
 ######## SGX SDK Settings ########
 
-SGX_SDK ?= /opt/intel/sgxsdk # Intel SGX directory
-SGX_MODE ?= SW # HW or SW (Hardware or Simulation mode)
-SGX_ARCH ?= x64 # x64 or x86
-SGX_DEBUG ?= 1 # DEBUG MODE
+# Intel SGX directory
+SGX_SDK ?= /opt/intel/sgxsdk
+# HW or SW (Hardware or Simulation mode)
+SGX_MODE ?= HW
+# x64 or x86
+SGX_ARCH ?= x64
+# DEBUG MODE
+SGX_DEBUG ?= 1
 
 # Find out whether 32 or 64 bit
 ifeq ($(shell getconf LONG_BIT), 32)
@@ -210,7 +214,7 @@ Enclave/Enclave_t.o: Enclave/Enclave_t.c
 	@echo "CC   <=  $<"
 
 # Compile trusted Enclave
-Enclave/Enclave.o: Enclave/Enclave.cpp
+Enclave/Enclave.o: Enclave/Enclave.cpp Enclave/Enclave_t.c
 	$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
@@ -225,7 +229,7 @@ Enclave/sqlite3.o: Enclave/sqlite3.i Enclave/sqlite3.c
 	@echo "CC  <=  $<"
 
 # Preprocess sqlite3
-Enclave/ocall_interface.i: Enclave/ocall_interface.c
+Enclave/ocall_interface.i: Enclave/ocall_interface.c Enclave/Enclave_t.c
 	$(CC) -I$(SGX_SDK)/include -E $< -o $@
 	@echo "CC-Preprocess  <=  $<"
 
