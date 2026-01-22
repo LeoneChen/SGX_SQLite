@@ -53,7 +53,11 @@ off_t lseek64(int fd, off_t offset, int whence){
     return ret;
 }
 
+#if ENCLAVE_FUZZ
+int gettimeofday(struct timeval *tv, void *tz){
+#else
 int gettimeofday(struct timeval *tv, struct timezone *tz){
+#endif
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
@@ -71,6 +75,7 @@ void *dlopen(const char *filename, int flag){
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 char *dlerror(void){
@@ -85,6 +90,7 @@ void *dlsym(void *handle, const char *symbol){
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
 
+    return NULL;
 }
 
 int dlclose(void *handle){
@@ -226,6 +232,9 @@ int fcntl(int fd, int cmd, ... /* arg */ ){
     }
     return ret;
 }
+#if ENCLAVE_FUZZ
+void fcntl64(void) __attribute__((alias("fcntl")));
+#endif
 
 ssize_t read(int fd, void *buf, size_t count){
     int ret;
@@ -314,6 +323,7 @@ void *mmap64(void *addr, size_t len, int prot, int flags, int fildes, off_t off)
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 int munmap(void *addr, size_t length){
@@ -327,6 +337,7 @@ void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...
     char error_msg[256];
     snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
     ocall_print_error(error_msg);
+    return NULL;
 }
 
 ssize_t readlink(const char *path, char *buf, size_t bufsiz){
