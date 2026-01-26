@@ -6,6 +6,8 @@
 #include <stdarg.h> // for variable arguments functions
 #include <fcntl.h>
 #include <stdlib.h>
+#include <errno.h>
+#include "sgx_trts.h"
 
 // At this point we have already definitions needed for  ocall interface, so:
 #define DO_NOT_REDEFINE_FOR_OCALL
@@ -22,6 +24,10 @@ long int sysconf(int name){
 }
 
 int open64(const char *filename, int flags, ...){
+    if (filename == NULL || !sgx_is_within_enclave(filename, 1)) {
+        errno = EFAULT;
+        return -1;
+    }
     mode_t mode = 0; // file permission bitmask
 
     // Get the mode_t from arguments
@@ -38,6 +44,8 @@ int open64(const char *filename, int flags, ...){
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
@@ -49,6 +57,8 @@ off_t lseek64(int fd, off_t offset, int whence){
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return (off_t)-1;
     }
     return ret;
 }
@@ -121,6 +131,7 @@ pid_t getpid(void){
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        return -1;
     }
     return ret;
 }
@@ -132,6 +143,8 @@ int fsync(int fd){
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
@@ -150,6 +163,8 @@ int close(int fd){
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
@@ -162,45 +177,80 @@ int access(const char *pathname, int mode){
 }
 
 char *getcwd(char *buf, size_t size){
+    if (buf == NULL || size == 0) {
+        return NULL;
+    }
+    if (!sgx_is_within_enclave(buf, size)) return NULL;
     char* ret;
     sgx_status_t status = ocall_getcwd(&ret, buf, size);
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        return NULL;
     }
-    return ret;
+    if (ret != NULL) {
+        buf[size - 1] = '\0';
+        return buf;
+    }
+    return NULL;
 }
 
 int sgx_lstat(const char *path, struct stat *buf){
+    if (path == NULL || !sgx_is_within_enclave(path, 1)) {
+        errno = EFAULT;
+        return -1;
+    }
+    if (!sgx_is_within_enclave(buf, sizeof(struct stat))) {
+        errno = EFAULT;
+        return -1;
+    }
     int ret;
     sgx_status_t status = ocall_lstat(&ret, path, buf, sizeof(struct stat));
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
 
 int sgx_stat(const char *path, struct stat *buf){
+    if (path == NULL || !sgx_is_within_enclave(path, 1)) {
+        errno = EFAULT;
+        return -1;
+    }
+    if (!sgx_is_within_enclave(buf, sizeof(struct stat))) {
+        errno = EFAULT;
+        return -1;
+    }
     int ret;
     sgx_status_t status = ocall_stat(&ret, path, buf, sizeof(struct stat));
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
 
 int sgx_fstat(int fd, struct stat *buf){
+    if (!sgx_is_within_enclave(buf, sizeof(struct stat))) {
+        errno = EFAULT;
+        return -1;
+    }
     int ret;
     sgx_status_t status = ocall_fstat(&ret, fd, buf, sizeof(struct stat));
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
@@ -212,23 +262,71 @@ int sgx_ftruncate(int fd, off_t length){
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
 
 int fcntl(int fd, int cmd, ... /* arg */ ){
-    // Read one argument
     va_list valist;
-	va_start(valist, cmd);
-	void* arg = va_arg(valist, void*);
-	va_end(valist);
+    va_start(valist, cmd);
+    
+    // We assume the argument fits in a void* (pointer or integer)
+    void* arg_val = va_arg(valist, void*);
+    va_end(valist);
+
+    void* arg_ptr = NULL;
+    size_t arg_size = 0;
+    int int_arg;
+    
+    switch (cmd) {
+        case F_DUPFD:
+        case F_SETFD:
+        case F_SETFL:
+#ifdef F_DUPFD_CLOEXEC
+        case F_DUPFD_CLOEXEC:
+#endif
+            // Argument is an int value. pass its address.
+            int_arg = (int)(long)arg_val;
+            arg_ptr = &int_arg;
+            arg_size = sizeof(int);
+            break;
+        case F_GETFD:
+        case F_GETFL:
+            // No argument
+            arg_ptr = NULL;
+            arg_size = 0;
+            break;
+        case F_GETLK:
+        case F_SETLK:
+        case F_SETLKW:
+            // Argument is struct flock*
+            arg_ptr = arg_val;
+            arg_size = sizeof(struct flock);
+            if (!sgx_is_within_enclave(arg_ptr, arg_size)) {
+                errno = EFAULT;
+                return -1;
+            }
+            break;
+        default:
+            // Unknown command, assume no argument or print error
+            {
+                 char error_msg[256];
+                 snprintf(error_msg, sizeof(error_msg), "%s: unknown cmd %d", __func__, cmd);
+                 ocall_print_error(error_msg);
+                 return -1;
+            }
+    }
 
     int ret;
-    sgx_status_t status = ocall_fcntl(&ret, fd, cmd, arg, sizeof(void*));
+    sgx_status_t status = ocall_fcntl(&ret, fd, cmd, arg_ptr, arg_size);
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
@@ -237,23 +335,43 @@ void fcntl64(void) __attribute__((alias("fcntl")));
 #endif
 
 ssize_t read(int fd, void *buf, size_t count){
+    if (!sgx_is_within_enclave(buf, count)) {
+        errno = EFAULT;
+        return -1;
+    }
     int ret;
     sgx_status_t status = ocall_read(&ret, fd, buf, count);
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
+    }
+    // Patch: Ensure ret is not greater than count to prevent overflow in caller
+    if (ret > 0 && (size_t)ret > count) {
+        return -1;
+    }
+    // Patch: Zero out the remaining buffer to prevent information leak from host
+    if (ret >= 0 && (size_t)ret < count) {
+        memset((char*)buf + ret, 0, count - ret);
     }
     return (ssize_t)ret;
 }
 
 ssize_t write(int fd, const void *buf, size_t count){
+    if (!sgx_is_within_enclave(buf, count)) {
+        errno = EFAULT;
+        return -1;
+    }
     int ret;
     sgx_status_t status = ocall_write(&ret, fd, buf, count);
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return (ssize_t)ret;
 }
@@ -266,12 +384,18 @@ int fchmod(int fd, mode_t mode){
 }
 
 int unlink(const char *pathname){
+    if (pathname == NULL || !sgx_is_within_enclave(pathname, 1)) {
+        errno = EFAULT;
+        return -1;
+    }
     int ret;
     sgx_status_t status = ocall_unlink(&ret, pathname);
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        errno = EIO;
+        return -1;
     }
     return ret;
 }
@@ -304,19 +428,35 @@ uid_t geteuid(void){
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        return -1;
     }
     return (uid_t)ret;
 }
 
 char* getenv(const char *name){
-    char* ret = NULL;
-    sgx_status_t status = ocall_getenv(&ret, name);
+    if (name == NULL) return NULL;
+    if (!sgx_is_within_enclave(name, 1)) return NULL;
+    // We allocate a buffer and leak it because getenv returns a pointer that the caller does not free.
+    // Since sqlite3 calls getenv only a few times during initialization, this leak is small and acceptable.
+    size_t len = 1024;
+    char* buf = (char*)malloc(len);
+    if (buf == NULL) return NULL;
+
+    int ret = -1;
+    sgx_status_t status = ocall_getenv(&ret, name, buf, len);
     if (status != SGX_SUCCESS) {
         char error_msg[256];
         snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
         ocall_print_error(error_msg);
+        free(buf);
+        return NULL;
     }
-    return ret;
+    if (ret == 0) {
+        buf[len - 1] = '\0';
+        return buf;
+    }
+    free(buf);
+    return NULL;
 }
 
 void *mmap64(void *addr, size_t len, int prot, int flags, int fildes, off_t off){

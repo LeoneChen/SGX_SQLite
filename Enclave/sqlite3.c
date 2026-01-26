@@ -33102,6 +33102,8 @@ static int unixRead(
   }else if( got<0 ){
     /* lastErrno set by seekAndRead */
     return SQLITE_IOERR_READ;
+  }else if( got>amt ){
+    return SQLITE_IOERR_READ;
   }else{
     storeLastErrno(pFile, 0);   /* not a system error */
     /* Unread parts of the buffer must be zero-filled */

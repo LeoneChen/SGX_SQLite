@@ -75,7 +75,35 @@ int ocall_write(int fd, const void *buf, size_t count) {
 
 int ocall_fcntl(int fd, int cmd, void *arg, size_t size) {
   // printf("Entering %s\n", __func__);
-  return fcntl(fd, cmd, arg);
+  switch (cmd) {
+      case F_DUPFD:
+      case F_SETFD:
+      case F_SETFL:
+#ifdef F_DUPFD_CLOEXEC
+      case F_DUPFD_CLOEXEC:
+#endif
+          if (arg && size >= sizeof(int)) {
+              return fcntl(fd, cmd, *(int*)arg);
+          }
+          break;
+      case F_GETFD:
+      case F_GETFL:
+          return fcntl(fd, cmd);
+      case F_GETLK:
+      case F_SETLK:
+      case F_SETLKW:
+           if (arg && size >= sizeof(struct flock)) {
+               return fcntl(fd, cmd, (struct flock*)arg);
+           }
+           break;
+      default:
+           // Try default handling if we missed something, but warn?
+           // For now, if we don't know the command, passing pointer might be dangerous if it expects int.
+           // But if it expects pointer, it works.
+           return fcntl(fd, cmd, arg);
+  }
+  errno = EINVAL;
+  return -1;
 }
 
 int ocall_close(int fd) {
@@ -93,9 +121,13 @@ int ocall_getuid(void) {
   return getuid();
 }
 
-char *ocall_getenv(const char *name) {
+int ocall_getenv(const char *name, char *value, size_t len) {
   // printf("Entering %s\n", __func__);
-  return getenv(name);
+  char* val = getenv(name);
+  if (val == NULL) return -1;
+  if (strlen(val) >= len) return -2; // Truncation
+  strncpy(value, val, len);
+  return 0;
 }
 
 int ocall_fsync(int fd) {
