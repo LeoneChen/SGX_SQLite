@@ -22,7 +22,11 @@ void ocall_println_string(const char *str){
 }
 
 // Application entry
+#if ENCLAVE_FUZZ
+int no_main(int argc, char *argv[]){
+#else
 int main(int argc, char *argv[]){
+#endif
     if ( argc != 2 ){
         cout << "Usage: " << argv[0] << " <database>" << endl;
         return -1;
